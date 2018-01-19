@@ -251,7 +251,11 @@ def construct_models(df, meta_file, threshold = 80, export_path = None):
     Returns:
         tuple of analysis df with predictions concatenated, and metafile
     """
-    df_w_probs = pd.DataFrame(columns=(list(df.columns) + ['probs', 'model_precision']))
+    newcols = ['probs', 'model_precision']
+    for col in newcols:
+        if col in df.columns:
+            df.drop(col, axis = 1, inplace = True)
+    df_w_probs = pd.DataFrame(columns=(list(df.columns) + newcols))
     for i, player_id in enumerate(meta_file.keys()):
 
         # filter by player
@@ -303,6 +307,22 @@ def construct_models(df, meta_file, threshold = 80, export_path = None):
             with open(fname , 'wb') as f:
                 pickle.dump(vc, f)
     return df_w_probs, meta_file
+
+def calibration_histogram(probs, y_true, n_split = 21):
+    """
+    Get hit rate by probability bin and graph
+
+    Args:
+        Probs: iterator of model probability predictions.
+        y_true: 'got_hit' outcome corresponding to those odds
+        n_split: how many histogram bins to create
+    """
+    df = pd.DataFrame([probs, y_true]).T
+    df.columns = ['probs', 'y_true']
+    bins = np.linspace(0, 100, n_split) / 100
+    df['probs_cat'] = pd.cut(df.probs, bins)
+    df['probs_cat'] = df['probs_cat'].cat.remove_unused_categories()
+    sns.factorplot(x='probs_cat', y='y_true', data=df, size=7, aspect=2)
 
 not_features = ['date','home','matchup','opp_pitcher','opp_pitcher_lefty',
                 'opp_team','own_pitcher','own_pitcher_lefty','team', 'date_m1',
